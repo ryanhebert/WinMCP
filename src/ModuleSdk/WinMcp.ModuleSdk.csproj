@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- NuGet package identity -->
+    <PackageId>WinMcp.ModuleSdk</PackageId>
+    <Version>1.0.0-alpha.1</Version>
+    <Authors>Ryan Hebert</Authors>
+    <Company>WinMCP Project</Company>
+    <Product>WinMCP Module SDK</Product>
+    <Description>SDK for building modules that run inside the WinMCP platform. Implement IMcpModule, expose MCP tools/prompts/resources, ship a module.json manifest. See https://github.com/ryanhebert/WinMCP-Modules/blob/main/docs/BUILDING-A-MODULE.md.</Description>
+    <PackageTags>mcp;model-context-protocol;winmcp;windows;module;sdk</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/ryanhebert/WinMCP</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ryanhebert/WinMCP.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Initial alpha. API surface: IMcpModule, ModuleMetadata, ModuleConfigurationContext, IPlatformInfo, AuthMode, McpModuleAttribute. Subject to change before 1.0.0 stable.</PackageReleaseNotes>
+
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Microsoft.Extensions.{Configuration,DependencyInjection,Logging}.Abstractions
+         flow transitively from ModelContextProtocol. Don't pin them here — the MCP
+         SDK currently targets 10.0.5 and explicit pins at 8.x trigger NU1605 downgrades. -->
+    <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
+  </ItemGroup>
+
+</Project>
