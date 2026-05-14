@@ -136,9 +136,12 @@ public static class ModuleManifestParser
             {
                 Fail("updateSource.repo", $"'{u.Repo}' must be in 'owner/repo' form");
             }
-            if (string.IsNullOrWhiteSpace(u.Asset) || !u.Asset.Contains("{version}", StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(u.Asset) ||
+                (!u.Asset.Contains("{version}", StringComparison.Ordinal) &&
+                 !u.Asset.Contains("{tag}", StringComparison.Ordinal)))
             {
-                Fail("updateSource.asset", $"'{u.Asset}' must contain the literal '{{version}}' placeholder");
+                Fail("updateSource.asset",
+                    $"'{u.Asset}' must contain at least one of '{{version}}' or '{{tag}}' placeholders");
             }
             if (u.Asset.Contains('/') || u.Asset.Contains('\\'))
             {

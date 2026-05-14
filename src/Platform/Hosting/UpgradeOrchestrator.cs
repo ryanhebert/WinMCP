@@ -406,8 +406,19 @@ internal static class UpgradeOrchestrator
                 tag = requestedVersion;
             }
 
-            // 2. Substitute {version} → tag in the asset template + build URL.
-            var assetName = source.Asset.Replace("{version}", tag);
+            // 2. Substitute placeholders in the asset template + build URL.
+            //   {tag}      → the raw release tag (e.g. "math-v1.0.0")
+            //   {version}  → the SemVer-with-v portion (e.g. "v1.0.0"),
+            //                obtained by stripping a "<moduleName>-" prefix
+            //                from the tag if present. For single-module
+            //                repos with tags shaped like "v1.0.0" this is
+            //                a no-op so the platform path still works.
+            var version = tag.StartsWith(moduleName + "-", StringComparison.Ordinal)
+                ? tag.Substring(moduleName.Length + 1)
+                : tag;
+            var assetName = source.Asset
+                .Replace("{tag}", tag, StringComparison.Ordinal)
+                .Replace("{version}", version, StringComparison.Ordinal);
             var downloadUrl = $"https://github.com/{source.Repo}/releases/download/{tag}/{assetName}";
             logger.LogInformation("Downloading module {Module} from {Url}", moduleName, downloadUrl);
 
