@@ -28,4 +28,11 @@ public static class PlatformPaths
     public static string UpgradeStagingExe => Path.Combine(InstallDir, "WinMCP.exe.new");
     public static string UpgradeHelperBat => Path.Combine(InstallDir, "upgrade-helper.cmd");
     public static string UpgradeFailedMarker => Path.Combine(InstallDir, "upgrade-failed.txt");
+
+    public static string ModuleDir(string name) => Path.Combine(ModulesDir, name);
+    public static string ModuleStagingDir(string name) => Path.Combine(ModulesDir, name + ".staging");
+    public static string ModuleStagingZip(string name) => Path.Combine(InstallDir, $"module-{name}.zip");
+    public static string ModuleUpgradeHelperBat => Path.Combine(InstallDir, "module-upgrade-helper.cmd");
+    public static string ModuleUpgradeFailedMarker(string name) =>
+        Path.Combine(InstallDir, $"module-upgrade-{name}-failed.txt");
 }

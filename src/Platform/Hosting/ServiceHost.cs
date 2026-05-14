@@ -187,6 +187,7 @@ public static class ServiceHost
             config.Admin.Auth.Mode, config.Mcp.DefaultAuth.Mode);
 
         UpgradeOrchestrator.CleanupStaleArtefacts(startupLogger);
+        UpgradeOrchestrator.Configure(loaded, platformVersion);
 
         if (certResult == CertificateProvider.EnsureResult.Renewed)
         {

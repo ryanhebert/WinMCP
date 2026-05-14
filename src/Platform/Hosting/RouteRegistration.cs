@@ -189,6 +189,7 @@ internal static class RouteRegistration
                         MountPath: m.Manifest.MountPath,
                         Maturity: m.Manifest.Maturity.ToString().ToLowerInvariant(),
                         AuthMode: auth.ToString().ToLowerInvariant(),
+                        HasUpdateSource: m.Manifest.UpdateSource is not null,
                         ToolNames: scope?.Tools.OrderBy(t => t, StringComparer.Ordinal).ToList() ?? new List<string>(),
                         PromptNames: scope?.Prompts.OrderBy(p => p, StringComparer.Ordinal).ToList() ?? new List<string>(),
                         ResourceNames: scope?.Resources.OrderBy(r => r, StringComparer.Ordinal).ToList() ?? new List<string>());

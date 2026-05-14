@@ -49,6 +49,24 @@ When a release ships, move "Unreleased" entries into a new `## [vX.Y.Z] — YYYY
 - Startup scrubs stale upgrade artefacts (`WinMCP.exe.new`,
   `upgrade-helper.cmd`) and surfaces a WARN log if an
   `upgrade-failed.txt` marker is present so operators know to check.
+- `updateSource` manifest field: per-module `{ type: "github-releases",
+  repo: "owner/repo", asset: "name-{version}.zip" }`. Modules carrying
+  this field gain an in-UI Upgrade button.
+- In-place module upgrade: `POST /upgrade/module/{name}` resolves the
+  latest release tag via the GitHub API, streams the asset zip,
+  PK-verifies it, extracts into `<modules>/<name>.staging/`, validates
+  the staged `module.json` (name match, minPlatformVersion compat,
+  version differs), writes a helper `.cmd` that stops the service,
+  removes the live module dir, moves staging into place (with retry),
+  and starts the service back. No-op short-circuit when the staged
+  version equals the running version. Shares the platform upgrade's
+  in-flight lock + 5-minute watchdog.
+- `/upgrade/status` extended with `kind` (platform|module) and `module`
+  fields so the dashboard renders the right scope; status state machine
+  is shared across platform and module upgrades.
+- Startup cleanup also scrubs `<name>.staging` dirs, `module-*.zip`
+  staging zips, `module-upgrade-helper.cmd`, and surfaces any
+  `module-upgrade-<name>-failed.txt` markers.
 
 ### Notes
 - SDK is alpha; API surface may change before 1.0.0 stable. Module authors

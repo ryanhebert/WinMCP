@@ -252,6 +252,18 @@ internal static class IndexPage
   .symbol.kind-prompt   { border-left: 2px solid var(--accent-2); }
   .symbol.kind-resource { border-left: 2px solid var(--ok); }
   .symbols-empty { font-size: 11.5px; color: var(--fg-muted); font-style: italic; }
+  .module-upgrade-btn {
+    background: rgba(124,92,255,0.10);
+    color: var(--accent);
+    border: 1px solid rgba(124,92,255,0.5);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-family: inherit; font-size: 11.5px; font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .module-upgrade-btn:hover { background: rgba(124,92,255,0.18); }
+  .module-upgrade-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* Requests table */
   table.reqs {
@@ -821,13 +833,20 @@ internal static class IndexPage
     }
     umCloseX.addEventListener('click', () => closeModal(false));
 
-    function finish(ok, reason) {
+    function finish(ok, reason, didRestart) {
       umAction.disabled = false;
       if (ok) {
         umState.className = 'state done';
         umState.textContent = 'done';
-        umAction.textContent = 'Close & reload';
-        umAction.onclick = () => closeModal(true);
+        // Reload on success only when the service actually restarted; the
+        // "already up to date" no-op path doesn't need a page refresh.
+        if (didRestart) {
+          umAction.textContent = 'Close & reload';
+          umAction.onclick = () => closeModal(true);
+        } else {
+          umAction.textContent = 'Close';
+          umAction.onclick = () => closeModal(false);
+        }
       } else {
         umState.className = 'state failed';
         umState.textContent = `failed: ${reason}`;
@@ -837,20 +856,27 @@ internal static class IndexPage
       }
     }
 
-    async function streamUpgrade(target, targetSemver) {
-      termHeader(`WinMCP upgrade → ${target}`);
+    // Generic upgrade flow used by both the platform "Upgrade now" button
+    // and per-module Upgrade buttons. Differences are passed via opts:
+    //   endpoint     — where to POST (platform: /upgrade; module: /upgrade/module/<name>)
+    //   body         — request payload ({version: 'latest'|tag})
+    //   headerText   — first line shown in the modal terminal
+    //   stagedNote   — message rendered when state transitions to 'staged'
+    //   versionCheck — fn(info) → {done, label?} consulted after /info polls
+    async function streamUpgrade(opts) {
+      termHeader(opts.headerText);
       termLine('<span class="dim">requesting upgrade…</span>');
 
       let res;
       try {
-        res = await fetch('/upgrade', {
+        res = await fetch(opts.endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ version: target }),
+          body: JSON.stringify(opts.body),
         });
       } catch (e) {
         termLine(`request failed: ${esc(e.message)}`, 'err');
-        return finish(false, 'request failed');
+        return finish(false, 'request failed', false);
       }
       if (!res.ok) {
         const body = await res.text();
@@ -859,13 +885,16 @@ internal static class IndexPage
         if (res.status === 409) {
           termLine('an upgrade is already in progress — try again in a minute', 'warn');
         }
-        return finish(false, `HTTP ${res.status}`);
+        return finish(false, `HTTP ${res.status}`, false);
       }
       termLine('accepted (HTTP 202)', 'ok');
 
-      // Poll /upgrade/status until done/failed or /info shows the new version.
+      // Poll /upgrade/status until done/failed, or until /info confirms the
+      // new version is live (covers the gap where the service restarted and
+      // status reset to 'idle').
       let progressLine = null;
       let lastState = null;
+      let sawRestarting = false;
       let serviceWentDown = false;
       const start = Date.now();
       while (Date.now() - start < 240000) {  // 4 min cap
@@ -879,26 +908,31 @@ internal static class IndexPage
           if (st.state !== lastState) {
             switch (st.state) {
               case 'downloading':
-                termLine('<span class="accent">downloading binary…</span>');
+                termLine('<span class="accent">downloading…</span>');
                 if (!progressLine) progressLine = termProgressLine();
                 break;
               case 'staged':
                 if (progressLine && st.bytes_total) {
                   termProgressUpdate(progressLine, st.bytes_total, st.bytes_total);
                 }
-                termLine('<span class="ok">✓</span> binary verified (PE header OK)');
+                termLine(`<span class="ok">✓</span> ${opts.stagedNote}`);
                 termLine('<span class="dim">spawning upgrade helper…</span>');
                 break;
               case 'restarting':
+                sawRestarting = true;
                 termLine('<span class="dim">helper running — service stop will follow in ~3s</span>');
                 umState.textContent = 'service restarting…';
                 break;
               case 'done':
-                termLine('<span class="ok">✓ upgrade complete</span>');
-                return finish(true);
+                if (st.message) {
+                  termLine(`<span class="ok">✓ ${esc(st.message)}</span>`);
+                } else {
+                  termLine('<span class="ok">✓ upgrade complete</span>');
+                }
+                return finish(true, null, sawRestarting);
               case 'failed':
                 termLine(`<span class="err">✗ failed: ${esc(st.message || 'unknown')}</span>`);
-                return finish(false, st.message || 'failed');
+                return finish(false, st.message || 'failed', sawRestarting);
             }
             lastState = st.state;
             umState.textContent = st.state;
@@ -908,22 +942,20 @@ internal static class IndexPage
           }
         }
 
-        // /info tells us when the new version is live — works even after the
-        // server restarted and /upgrade/status reset to 'idle'.
         try {
           const ir = await fetch('/info', { cache: 'no-store' });
           if (ir.ok) {
             const info = await ir.json();
-            if (info.version) {
-              const installed = info.version.split('+')[0];
-              if (cmpVersion(installed, targetSemver) >= 0) {
-                if (serviceWentDown) {
-                  termLine('<span class="ok">✓</span> service is back online');
-                }
-                termLine(`<span class="ok">✓</span> new version: <span class="accent">${esc(info.version)}</span>`);
-                termLine('<span class="ok">✓ upgrade complete</span>');
-                return finish(true);
+            const vc = opts.versionCheck(info);
+            if (vc && vc.done) {
+              if (serviceWentDown) {
+                termLine('<span class="ok">✓</span> service is back online');
               }
+              if (vc.label) {
+                termLine(`<span class="ok">✓</span> ${vc.label}`);
+              }
+              termLine('<span class="ok">✓ upgrade complete</span>');
+              return finish(true, null, sawRestarting);
             }
           } else if (!serviceWentDown) {
             serviceWentDown = true;
@@ -939,7 +971,7 @@ internal static class IndexPage
         await new Promise(r => setTimeout(r, 800));
       }
       termLine('<span class="err">timed out after 4 minutes — check /logs for details</span>');
-      return finish(false, 'timed out');
+      return finish(false, 'timed out', sawRestarting);
     }
 
     ubUpgrade.addEventListener('click', async () => {
@@ -947,7 +979,47 @@ internal static class IndexPage
       const targetSemver = target.replace(/^v/, '');
       if (!confirm(`Upgrade this server to ${target}? The service will stop, swap binaries, and restart (~10–30 seconds). Connected MCP clients will see a brief outage.`)) return;
       openModal(target, 'v' + CURRENT.split('+')[0]);
-      await streamUpgrade(target, targetSemver);
+      await streamUpgrade({
+        endpoint: '/upgrade',
+        body: { version: target },
+        headerText: `WinMCP upgrade → ${target}`,
+        stagedNote: 'binary verified (PE header OK)',
+        versionCheck: info => {
+          if (!info || !info.version) return null;
+          const installed = info.version.split('+')[0];
+          return {
+            done: cmpVersion(installed, targetSemver) >= 0,
+            label: `new version: <span class="accent">${esc(info.version)}</span>`,
+          };
+        },
+      });
+    });
+
+    // Per-module Upgrade buttons. Each carries data-module + data-current
+    // attributes; the click handler resolves them and drives streamUpgrade
+    // with module-scoped endpoint + version check.
+    document.querySelectorAll('.module-upgrade-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const moduleName = btn.dataset.module;
+        const currentVersion = btn.dataset.current;
+        if (!confirm(`Upgrade module ${moduleName} to its latest release? The service will stop, swap the module folder, and restart (~10–30 seconds). Connected MCP clients will see a brief outage.`)) return;
+        openModal('latest', `v${currentVersion}`);
+        await streamUpgrade({
+          endpoint: `/upgrade/module/${encodeURIComponent(moduleName)}`,
+          body: { version: 'latest' },
+          headerText: `Module ${moduleName} upgrade → latest`,
+          stagedNote: 'archive extracted + manifest validated',
+          versionCheck: info => {
+            if (!info || !Array.isArray(info.modules)) return null;
+            const mod = info.modules.find(m => m.name === moduleName);
+            if (!mod || !mod.version) return null;
+            return {
+              done: mod.version !== currentVersion,
+              label: `new version: <span class="accent">${esc(mod.version)}</span>`,
+            };
+          },
+        });
+      });
     });
 
     ubCheck.addEventListener('click', async (e) => {
@@ -1127,6 +1199,10 @@ internal static class IndexPage
             ? $"<div class=\"module-symbols\">{tools}{prompts}{resources}</div>"
             : "<div class=\"module-symbols\"><span class=\"symbols-empty\">No tools, prompts, or resources registered.</span></div>";
 
+        var upgradeBtn = m.HasUpdateSource
+            ? $"<button class=\"module-upgrade-btn\" data-module=\"{Esc(m.Name)}\" data-current=\"{Esc(m.Version)}\" title=\"Upgrade this module to its latest GitHub release\">Upgrade ↑</button>"
+            : "";
+
         return $$"""
         <div class="module-row">
           <div class="name-line">
@@ -1135,6 +1211,7 @@ internal static class IndexPage
             <span class="badge {{maturityClass}}">{{Esc(m.Maturity)}}</span>
             <span class="badge {{authClass}}">auth: {{Esc(m.AuthMode)}}</span>
             <span class="mdisplay">{{Esc(m.DisplayName)}}</span>
+            <span style="margin-left:auto">{{upgradeBtn}}</span>
           </div>
           <div class="module-meta">
             <span>mount <strong>{{Esc(m.MountPath)}}</strong></span>
@@ -1276,6 +1353,7 @@ internal sealed record ModuleDisplay(
     string MountPath,
     string Maturity,
     string AuthMode,
+    bool HasUpdateSource,
     IReadOnlyList<string> ToolNames,
     IReadOnlyList<string> PromptNames,
     IReadOnlyList<string> ResourceNames);

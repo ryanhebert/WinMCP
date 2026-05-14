@@ -69,6 +69,35 @@ public sealed class ModuleManifest
 
     [JsonPropertyName("signature")]
     public object? Signature { get; init; }
+
+    // === Optional auto-upgrade source ===
+    [JsonPropertyName("updateSource")]
+    public ModuleUpdateSource? UpdateSource { get; init; }
+}
+
+/// <summary>
+/// Describes where a module's release artefacts live so the platform can
+/// fetch a newer version on operator request. Modules without an
+/// updateSource block don't get an in-UI Upgrade button — operators upgrade
+/// them by manually replacing the folder and restarting the service.
+/// </summary>
+public sealed class ModuleUpdateSource
+{
+    /// <summary>v1.0 supports <c>github-releases</c> only.</summary>
+    [JsonPropertyName("type")]
+    public required string Type { get; init; }
+
+    /// <summary>e.g. <c>ryanhebert/WinMCP-Modules</c>.</summary>
+    [JsonPropertyName("repo")]
+    public required string Repo { get; init; }
+
+    /// <summary>
+    /// Release-asset filename template. Must contain <c>{version}</c>, which
+    /// is replaced with the release tag at resolution time (e.g.
+    /// <c>math-{version}.zip</c> → <c>math-v1.2.0.zip</c>).
+    /// </summary>
+    [JsonPropertyName("asset")]
+    public required string Asset { get; init; }
 }
 
 public sealed class ModulePublisher

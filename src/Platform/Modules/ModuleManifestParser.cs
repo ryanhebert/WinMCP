@@ -14,6 +14,10 @@ public static class ModuleManifestParser
     private static readonly Regex SemVerRegex = new(
         @"^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$",
         RegexOptions.Compiled);
+    private static readonly Regex GithubRepoRegex = new(
+        @"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+        RegexOptions.Compiled);
+    private const string UpdateSourceTypeGithubReleases = "github-releases";
 
     private static readonly HashSet<string> ReservedMountPaths = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -120,6 +124,26 @@ public static class ModuleManifestParser
         if (!string.Equals(m.MountPath, expected, StringComparison.Ordinal))
         {
             Fail("mountPath", $"'{m.MountPath}' must be exactly '{expected}' to match the module name");
+        }
+
+        if (m.UpdateSource is { } u)
+        {
+            if (!string.Equals(u.Type, UpdateSourceTypeGithubReleases, StringComparison.Ordinal))
+            {
+                Fail("updateSource.type", $"'{u.Type}' is not supported (v1.0 accepts '{UpdateSourceTypeGithubReleases}' only)");
+            }
+            if (string.IsNullOrWhiteSpace(u.Repo) || !GithubRepoRegex.IsMatch(u.Repo))
+            {
+                Fail("updateSource.repo", $"'{u.Repo}' must be in 'owner/repo' form");
+            }
+            if (string.IsNullOrWhiteSpace(u.Asset) || !u.Asset.Contains("{version}", StringComparison.Ordinal))
+            {
+                Fail("updateSource.asset", $"'{u.Asset}' must contain the literal '{{version}}' placeholder");
+            }
+            if (u.Asset.Contains('/') || u.Asset.Contains('\\'))
+            {
+                Fail("updateSource.asset", $"'{u.Asset}' must be a bare filename (no path separators)");
+            }
         }
     }
 
