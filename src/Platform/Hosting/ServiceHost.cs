@@ -186,6 +186,8 @@ public static class ServiceHost
             port80Available ? "active" : "skipped",
             config.Admin.Auth.Mode, config.Mcp.DefaultAuth.Mode);
 
+        UpgradeOrchestrator.CleanupStaleArtefacts(startupLogger);
+
         if (certResult == CertificateProvider.EnsureResult.Renewed)
         {
             startupLogger.LogWarning(

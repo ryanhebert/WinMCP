@@ -356,12 +356,137 @@ internal static class IndexPage
     transition: all 0.15s ease;
   }
   .update-banner .actions a:hover { background: rgba(74,214,255,0.08); }
+  .update-banner .actions a.primary {
+    color: var(--accent); border-color: rgba(124,92,255,0.5);
+    background: rgba(124,92,255,0.10);
+  }
+  .update-banner .actions a.primary:hover { background: rgba(124,92,255,0.18); }
   .update-banner .dismiss {
     background: none; border: none; cursor: pointer;
     color: var(--fg-muted); font-size: 18px; line-height: 1;
     padding: 0 4px;
   }
   .update-banner .dismiss:hover { color: var(--fg); }
+  .update-banner .progress {
+    flex: 0 0 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+    display: none;
+  }
+  .update-banner .progress.show { display: block; }
+  .update-banner .progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+    transition: width 0.3s ease;
+  }
+  .update-banner .progress-bar.indeterminate {
+    width: 30%;
+    animation: indet 1.5s ease-in-out infinite;
+  }
+  @keyframes indet {
+    0%   { margin-left: -30%; }
+    100% { margin-left: 100%; }
+  }
+
+  /* === Upgrade modal === */
+  .upgrade-modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center; justify-content: center;
+  }
+  .upgrade-modal-backdrop.show { display: flex; }
+  .upgrade-modal {
+    width: min(720px, 92vw);
+    max-height: 80vh;
+    background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-card-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .upgrade-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .upgrade-modal-header .title { font-weight: 600; font-size: 14px; }
+  .upgrade-modal-header .title .versions {
+    color: var(--fg-muted); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px;
+    margin-left: 8px;
+  }
+  .upgrade-modal-header .close-x {
+    background: none; border: none; cursor: pointer;
+    color: var(--fg-muted); font-size: 22px; line-height: 1;
+    padding: 0 6px;
+  }
+  .upgrade-modal-header .close-x:hover { color: var(--fg); }
+  .upgrade-terminal {
+    flex: 1;
+    background: #07091a;
+    padding: 14px 16px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #c8d3ff;
+    overflow-y: auto;
+    border-bottom: 1px solid var(--border);
+    min-height: 280px;
+    max-height: 50vh;
+  }
+  .upgrade-terminal .ts { color: var(--fg-muted); margin-right: 12px; }
+  .upgrade-terminal .ok { color: var(--ok); }
+  .upgrade-terminal .err { color: var(--err); }
+  .upgrade-terminal .warn { color: var(--warn); }
+  .upgrade-terminal .dim { color: var(--fg-muted); }
+  .upgrade-terminal .accent { color: var(--accent-2); }
+  .upgrade-terminal .prompt { color: var(--accent); margin-right: 8px; }
+  .upgrade-terminal .bar {
+    display: inline-block; height: 8px; width: 200px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px; vertical-align: middle;
+    overflow: hidden; margin: 0 6px;
+  }
+  .upgrade-terminal .bar > span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+    transition: width 0.2s ease;
+  }
+  .upgrade-modal-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px;
+    background: rgba(0,0,0,0.2);
+  }
+  .upgrade-modal-footer .state {
+    font-size: 12px; color: var(--fg-muted);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .upgrade-modal-footer .state.done { color: var(--ok); }
+  .upgrade-modal-footer .state.failed { color: var(--err); }
+  .upgrade-modal-footer .actions { display: flex; gap: 8px; }
+  .upgrade-modal-footer button {
+    background: rgba(124,92,255,0.10);
+    color: var(--accent);
+    border: 1px solid rgba(124,92,255,0.5);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: inherit; font-size: 12.5px;
+    cursor: pointer;
+  }
+  .upgrade-modal-footer button.muted {
+    background: transparent; color: var(--fg-muted);
+    border-color: var(--border);
+  }
+  .upgrade-modal-footer button:hover:not(:disabled) {
+    background: rgba(124,92,255,0.18);
+  }
+  .upgrade-modal-footer button:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -375,18 +500,36 @@ internal static class IndexPage
       <div class="pill"><span class="dot"></span> Running</div>
     </header>
 
+    <div class="upgrade-modal-backdrop" id="upgrade-modal">
+      <div class="upgrade-modal">
+        <div class="upgrade-modal-header">
+          <div class="title">Upgrade <span class="versions" id="um-versions"></span></div>
+          <button class="close-x" id="um-close-x" title="Close">×</button>
+        </div>
+        <div class="upgrade-terminal" id="um-term"></div>
+        <div class="upgrade-modal-footer">
+          <span class="state" id="um-state">starting…</span>
+          <div class="actions">
+            <button id="um-action" disabled>Working…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="update-banner" id="update-banner">
       <div class="left" id="ub-left">
         <span class="spark">↑</span>
         <span>Update available: <strong id="ub-version">—</strong></span>
         <span style="color:var(--fg-muted)">·</span>
-        <span id="ub-status" style="color:var(--fg-muted)">download the new release and re-run the installer</span>
+        <span id="ub-status" style="color:var(--fg-muted)">downloads, swaps, and restarts in place</span>
       </div>
       <div class="actions" id="ub-actions">
+        <button class="primary" id="ub-upgrade" style="background:rgba(124,92,255,0.10); color:var(--accent); border:1px solid rgba(124,92,255,0.5); border-radius:8px; padding:5px 12px; font-size:12px; cursor:pointer;">Upgrade now</button>
         <a id="ub-dl" href="#" target="_blank" rel="noopener">Download ↗</a>
         <a id="ub-notes" href="#" target="_blank" rel="noopener">Release notes ↗</a>
         <button class="dismiss" id="ub-dismiss" title="Dismiss for now">×</button>
       </div>
+      <div class="progress" id="ub-progress"><div class="progress-bar" id="ub-progress-bar"></div></div>
     </div>
 
     <div class="grid">
@@ -542,8 +685,18 @@ internal static class IndexPage
     const ubDl     = document.getElementById('ub-dl');
     const ubNotes  = document.getElementById('ub-notes');
     const ubDismiss = document.getElementById('ub-dismiss');
+    const ubUpgrade = document.getElementById('ub-upgrade');
+    const ubStatus = document.getElementById('ub-status');
+    const ubProgress = document.getElementById('ub-progress');
+    const ubProgressBar = document.getElementById('ub-progress-bar');
     const ubCheck = document.getElementById('ub-check');
     const ubCheckResult = document.getElementById('ub-check-result');
+    const modal = document.getElementById('upgrade-modal');
+    const umVersions = document.getElementById('um-versions');
+    const umCloseX = document.getElementById('um-close-x');
+    const umTerm = document.getElementById('um-term');
+    const umState = document.getElementById('um-state');
+    const umAction = document.getElementById('um-action');
 
     function cmpVersion(a, b) {
       const ap = a.split('.').map(n => parseInt(n, 10) || 0);
@@ -596,6 +749,205 @@ internal static class IndexPage
     ubDismiss.addEventListener('click', () => {
       localStorage.setItem(DISMISS_KEY, ubVersion.textContent);
       banner.classList.remove('show');
+    });
+
+    function fmtBytes(n) {
+      if (n == null) return '—';
+      if (n < 1024) return `${n} B`;
+      if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+      return `${(n / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    function setProgress(percentOrIndet, visible) {
+      ubProgress.classList.toggle('show', visible);
+      if (percentOrIndet === 'indet') {
+        ubProgressBar.classList.add('indeterminate');
+        ubProgressBar.style.width = '';
+      } else {
+        ubProgressBar.classList.remove('indeterminate');
+        ubProgressBar.style.width = `${Math.max(0, Math.min(100, percentOrIndet))}%`;
+      }
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ===== Terminal-style modal output =====
+    function nowHms() { return new Date().toTimeString().slice(0, 8); }
+    function termLine(html, cls) {
+      const div = document.createElement('div');
+      div.innerHTML = `<span class="ts">${nowHms()}</span>${cls ? `<span class="${cls}">${html}</span>` : html}`;
+      umTerm.appendChild(div);
+      umTerm.scrollTop = umTerm.scrollHeight;
+      return div;
+    }
+    function termHeader(text) {
+      const div = document.createElement('div');
+      div.innerHTML = `<span class="prompt">$</span><span class="accent">${esc(text)}</span>`;
+      umTerm.appendChild(div);
+      return div;
+    }
+    function termProgressLine() {
+      const div = document.createElement('div');
+      umTerm.appendChild(div);
+      return div;
+    }
+    function termProgressUpdate(line, downloaded, total) {
+      const pct = total ? Math.min(100, Math.floor((downloaded / total) * 100)) : 0;
+      const filledPct = total ? pct : 30;
+      line.innerHTML =
+        `<span class="ts">${nowHms()}</span>` +
+        `<span class="dim">downloading</span> ` +
+        `<span class="bar"><span style="width:${filledPct}%"></span></span> ` +
+        `<span>${fmtBytes(downloaded)}${total ? ` / ${fmtBytes(total)} (${pct}%)` : '…'}</span>`;
+      umTerm.scrollTop = umTerm.scrollHeight;
+    }
+
+    function openModal(target, currentVersion) {
+      umVersions.textContent = `${currentVersion} → ${target}`;
+      umTerm.innerHTML = '';
+      umState.className = 'state';
+      umState.textContent = 'starting…';
+      umAction.disabled = true;
+      umAction.textContent = 'Working…';
+      umAction.classList.remove('muted');
+      modal.classList.add('show');
+    }
+    function closeModal(reload) {
+      modal.classList.remove('show');
+      if (reload) location.reload();
+    }
+    umCloseX.addEventListener('click', () => closeModal(false));
+
+    function finish(ok, reason) {
+      umAction.disabled = false;
+      if (ok) {
+        umState.className = 'state done';
+        umState.textContent = 'done';
+        umAction.textContent = 'Close & reload';
+        umAction.onclick = () => closeModal(true);
+      } else {
+        umState.className = 'state failed';
+        umState.textContent = `failed: ${reason}`;
+        umAction.textContent = 'Close';
+        umAction.classList.add('muted');
+        umAction.onclick = () => closeModal(false);
+      }
+    }
+
+    async function streamUpgrade(target, targetSemver) {
+      termHeader(`WinMCP upgrade → ${target}`);
+      termLine('<span class="dim">requesting upgrade…</span>');
+
+      let res;
+      try {
+        res = await fetch('/upgrade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version: target }),
+        });
+      } catch (e) {
+        termLine(`request failed: ${esc(e.message)}`, 'err');
+        return finish(false, 'request failed');
+      }
+      if (!res.ok) {
+        const body = await res.text();
+        termLine(`server returned HTTP ${res.status}`, 'err');
+        if (body) termLine(esc(body.slice(0, 200)), 'dim');
+        if (res.status === 409) {
+          termLine('an upgrade is already in progress — try again in a minute', 'warn');
+        }
+        return finish(false, `HTTP ${res.status}`);
+      }
+      termLine('accepted (HTTP 202)', 'ok');
+
+      // Poll /upgrade/status until done/failed or /info shows the new version.
+      let progressLine = null;
+      let lastState = null;
+      let serviceWentDown = false;
+      const start = Date.now();
+      while (Date.now() - start < 240000) {  // 4 min cap
+        let st = null;
+        try {
+          const r = await fetch('/upgrade/status', { cache: 'no-store' });
+          if (r.ok) st = await r.json();
+        } catch (_) { /* server probably restarting */ }
+
+        if (st) {
+          if (st.state !== lastState) {
+            switch (st.state) {
+              case 'downloading':
+                termLine('<span class="accent">downloading binary…</span>');
+                if (!progressLine) progressLine = termProgressLine();
+                break;
+              case 'staged':
+                if (progressLine && st.bytes_total) {
+                  termProgressUpdate(progressLine, st.bytes_total, st.bytes_total);
+                }
+                termLine('<span class="ok">✓</span> binary verified (PE header OK)');
+                termLine('<span class="dim">spawning upgrade helper…</span>');
+                break;
+              case 'restarting':
+                termLine('<span class="dim">helper running — service stop will follow in ~3s</span>');
+                umState.textContent = 'service restarting…';
+                break;
+              case 'done':
+                termLine('<span class="ok">✓ upgrade complete</span>');
+                return finish(true);
+              case 'failed':
+                termLine(`<span class="err">✗ failed: ${esc(st.message || 'unknown')}</span>`);
+                return finish(false, st.message || 'failed');
+            }
+            lastState = st.state;
+            umState.textContent = st.state;
+          }
+          if (st.state === 'downloading' && progressLine) {
+            termProgressUpdate(progressLine, st.bytes_downloaded || 0, st.bytes_total || 0);
+          }
+        }
+
+        // /info tells us when the new version is live — works even after the
+        // server restarted and /upgrade/status reset to 'idle'.
+        try {
+          const ir = await fetch('/info', { cache: 'no-store' });
+          if (ir.ok) {
+            const info = await ir.json();
+            if (info.version) {
+              const installed = info.version.split('+')[0];
+              if (cmpVersion(installed, targetSemver) >= 0) {
+                if (serviceWentDown) {
+                  termLine('<span class="ok">✓</span> service is back online');
+                }
+                termLine(`<span class="ok">✓</span> new version: <span class="accent">${esc(info.version)}</span>`);
+                termLine('<span class="ok">✓ upgrade complete</span>');
+                return finish(true);
+              }
+            }
+          } else if (!serviceWentDown) {
+            serviceWentDown = true;
+            termLine('<span class="warn">service is offline — waiting for restart</span>');
+          }
+        } catch (_) {
+          if (!serviceWentDown) {
+            serviceWentDown = true;
+            termLine('<span class="warn">service is offline — waiting for restart</span>');
+          }
+        }
+
+        await new Promise(r => setTimeout(r, 800));
+      }
+      termLine('<span class="err">timed out after 4 minutes — check /logs for details</span>');
+      return finish(false, 'timed out');
+    }
+
+    ubUpgrade.addEventListener('click', async () => {
+      const target = ubVersion.textContent;
+      const targetSemver = target.replace(/^v/, '');
+      if (!confirm(`Upgrade this server to ${target}? The service will stop, swap binaries, and restart (~10–30 seconds). Connected MCP clients will see a brief outage.`)) return;
+      openModal(target, 'v' + CURRENT.split('+')[0]);
+      await streamUpgrade(target, targetSemver);
     });
 
     ubCheck.addEventListener('click', async (e) => {

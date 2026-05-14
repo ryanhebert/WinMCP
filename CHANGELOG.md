@@ -36,7 +36,19 @@ When a release ships, move "Unreleased" entries into a new `## [vX.Y.Z] — YYYY
   every other request gets a 404 pointing at the configured HTTP/HTTPS
   ports.
 - Cache-Control `no-store` on `/`, `/info`, `/health`, `/requests`,
-  `/logs*` so a tab left open across an upgrade doesn't show stale data.
+  `/logs*`, `/upgrade*` so a tab left open across an upgrade doesn't
+  show stale data.
+- In-place platform upgrade: `POST /upgrade` streams a newer
+  `WinMCP.exe` from GitHub Releases, PE-verifies it, writes a helper
+  `.cmd` that stops the service, waits for the process to exit, swaps
+  the binary (with retry to ride out antivirus locks), and asks SCM to
+  start the service back. Returns 202 immediately; progress lives at
+  `GET /upgrade/status` and on the dashboard's upgrade modal.
+- Dashboard "Upgrade now" button + terminal-style progress modal,
+  driven by the same JS pipeline math-mcp shipped in v1.0.24.
+- Startup scrubs stale upgrade artefacts (`WinMCP.exe.new`,
+  `upgrade-helper.cmd`) and surfaces a WARN log if an
+  `upgrade-failed.txt` marker is present so operators know to check.
 
 ### Notes
 - SDK is alpha; API surface may change before 1.0.0 stable. Module authors

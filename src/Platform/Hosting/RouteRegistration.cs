@@ -91,7 +91,8 @@ internal static class RouteRegistration
                 p.StartsWith("/info", StringComparison.Ordinal) ||
                 p.StartsWith("/health", StringComparison.Ordinal) ||
                 p.StartsWith("/requests", StringComparison.Ordinal) ||
-                p.StartsWith("/logs", StringComparison.Ordinal))
+                p.StartsWith("/logs", StringComparison.Ordinal) ||
+                p.StartsWith("/upgrade", StringComparison.Ordinal))
             {
                 ctx.Response.Headers.CacheControl = "no-store";
             }
@@ -111,6 +112,7 @@ internal static class RouteRegistration
         MapLogsTail(app);
         MapLogsDates(app);
         MapFavicon(app);
+        UpgradeOrchestrator.MapEndpoints(app);
 
         if (anyDemoAuth)
         {
