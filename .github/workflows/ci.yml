@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Pre-source phase: this scaffold has no .csproj yet. Once src/Platform
+      # and src/ModuleSdk exist, replace the conditional with a normal build.
+      - name: Build (skip if no solution yet)
+        shell: bash
+        run: |
+          if [ -f WinMCP.sln ]; then
+            dotnet restore
+            dotnet build --configuration Release --no-restore
+          else
+            echo "No solution file yet; skipping build."
+          fi
+
+      - name: Test (skip if no tests yet)
+        shell: bash
+        run: |
+          if [ -d tests ]; then
+            dotnet test --configuration Release --no-build --verbosity normal
+          else
+            echo "No tests yet; skipping."
+          fi
+
+  validate-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        run: |
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color

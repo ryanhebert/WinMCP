@@ -1,0 +1,50 @@
+## .NET build output
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+## Single-file publish + release artifacts
+src/**/publish/
+*.exe
+!app.manifest
+WinMCP-v*.exe
+WinMCP.exe
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+## Test results
+TestResults/
+coverage*.xml
+*.coverage
+
+## IDE
+.idea/
+*.iml
+.vscode/
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Logs / local state
+*.log
+logs/
+config.local.json
+*.tmp
+*.bak
+
+## Misc
+.env
+.env.local
