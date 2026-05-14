@@ -31,7 +31,7 @@ Refuse to load `demo`-maturity modules when MCP default auth is `oidc`, unless `
 ## Modules — v1.1+ targets
 
 ### Install / uninstall via dashboard
-Today: drop module dir into `<InstallDir>\modules\` and restart the service. v1.1 adds an "Install module" UI that takes a release URL or selects from `WinMCP-Modules/modules.json`, downloads the zip, validates the manifest, extracts to the modules dir, restarts the service.
+Today: drop module dir into `<InstallDir>\modules\` and restart the service. v1.1 adds an "Install module" UI that takes a release URL or selects from `WinMCP-Modules/modules.json`, downloads the zip, validates the manifest, extracts to the modules dir, restarts the service. (Upgrade of already-installed modules ships in v1.0 via the per-module `updateSource` manifest field; install is the missing piece.)
 
 ### Module compatibility matrix
 Enforce `minMcpProtocolVersion` and `maxMcpProtocolVersion`. Refuse to load modules whose declared MCP protocol range doesn't intersect the platform's supported range.
@@ -39,8 +39,10 @@ Enforce `minMcpProtocolVersion` and `maxMcpProtocolVersion`. Refuse to load modu
 ### Module signing
 Authenticode signature on the module DLL, plus a `signature` field in the manifest (covering manifest + DLL hash). Dashboard shows a "verified publisher" badge when the signature matches a configured trusted-publisher key.
 
-### Hot-swap module upgrade
-Unload an `AssemblyLoadContext`, replace the DLL, reload — no service restart. Possible thanks to per-module ALC; deferred because correctness around in-flight requests + open SSE streams needs more design.
+### Hot-swap module upgrade (no service restart)
+Cold-swap module upgrade ships in v1.0 (P4c.6): dashboard's per-module Upgrade button downloads + stages the new release zip, the helper batch stops the service / replaces the module folder / starts the service back. That covers the operator-driven case but requires a brief outage on all modules.
+
+Hot-swap deferred: unload an `AssemblyLoadContext`, replace the DLL, reload — no service restart, no impact on other modules. Possible thanks to the per-module ALC introduced in P4b. Deferred because correctness around in-flight requests + open SSE streams needs more design (do we drain? cancel? buffer?).
 
 ---
 
