@@ -88,5 +88,32 @@ RBAC editing UI, audit log viewer, license management page. Lives in a separate 
 ### `WinMCP-Docs` repo + Docusaurus site
 Replaces piecemeal markdown with a real docs site at `winmcp.io/docs` (or similar). Three top-level sections: Getting started / Build a module / Reference. Auto-generated SDK API reference from XML doc comments.
 
+### Gateway mode (single-server view across all modules)
+Optional platform mode that exposes ONE merged MCP server at `/mcp`,
+aggregating tools/prompts/resources from every loaded module with their
+names prefixed by the module name (e.g., `math.add`, `weather.forecast`).
+The per-module `/<module>/mcp` endpoints continue to work in parallel.
+
+Use case: MCP clients that want a single connection / single capability
+list across the whole platform — no per-module URL bookkeeping. Trades
+off per-module auth granularity (one auth config gates the merged surface)
+for client simplicity.
+
+Implementation sketch:
+- New config flag `mcp.gatewayMode: { enabled: true, mountPath: "/mcp", toolNameSeparator: "." }`
+- When enabled, mount an additional MCP server instance at the
+  configured path, registering every module's assembly with a custom
+  tool-name transformer that prefixes `<module><separator>`.
+- The per-module endpoints stay as the source of truth for module-scoped
+  auth; the gateway endpoint uses `mcp.defaultAuth` only.
+- Document the naming-collision rule (no module may declare a tool
+  whose unprefixed name conflicts with the separator).
+
+Originally considered as the v1.0 implementation choice instead of the
+per-module URL filtering shim; deferred because the URL design + auth
+override semantics were the higher priority for v1.0. The filtering
+shim shipping in v1.0 doesn't preclude this — gateway mode would be
+an additive optional second view.
+
 ### Cross-platform Linux container
 A Linux container distribution that runs WinMCP (or a subset) on docker hosts. Trades the Windows Service shape for a containerized entry point. Useful for CI/test scenarios where standing up a Windows VM is overkill.
