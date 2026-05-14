@@ -98,7 +98,13 @@ public sealed class DemoValidator : IAuthValidator
     private static string BuildChallenge(HttpContext context, string error, string detail)
     {
         var origin = $"{context.Request.Scheme}://{context.Request.Host.Value}";
-        var resourceMetadata = $"{origin}/.well-known/oauth-protected-resource";
+        // RFC 9728 §3.1: the protected-resource metadata URL is built by
+        // inserting the resource's path component after the well-known prefix.
+        // For a per-module MCP endpoint like /math/mcp the discovery doc
+        // therefore lives at /.well-known/oauth-protected-resource/math/mcp,
+        // letting clients tell modules apart on a multi-module install.
+        var resourcePath = context.Request.Path.Value ?? string.Empty;
+        var resourceMetadata = $"{origin}/.well-known/oauth-protected-resource{resourcePath}";
         var safeDetail = detail.Replace("\\", "\\\\").Replace("\"", "\\\"");
         return
             $"Bearer realm=\"WinMCP\"" +
