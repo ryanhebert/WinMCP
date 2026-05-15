@@ -66,17 +66,27 @@ jobs:
         id: notes
         run: |
           set -euo pipefail
-          # Grab the [Unreleased] block — everything after "## [Unreleased]"
-          # up to (but not including) the next "## [" header. If the user
-          # hasn't moved entries out of Unreleased yet, that block is the
-          # changelog for this release.
-          awk '
-            /^## \[Unreleased\]/  { capture=1; next }
-            /^## \[/              { if (capture) exit }
-            capture                { print }
+          tag="${GITHUB_REF_NAME}"
+          # Prefer the section whose header matches the tag — e.g. for tag
+          # v1.0.0, pull the "## [v1.0.0]" block. This is the right path
+          # post-tag when CHANGELOG has been updated properly (Unreleased
+          # entries moved into the version section). Fall back to
+          # [Unreleased] if no matching block exists yet.
+          awk -v tag="$tag" '
+            $0 ~ "^## \\[" tag "\\]"  { capture=1; next }
+            /^## \[/                  { if (capture) exit }
+            capture                   { print }
           ' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
-            echo "Release ${GITHUB_REF_NAME}." > release-notes.md
+            echo "::warning::No [$tag] block in CHANGELOG; falling back to [Unreleased]."
+            awk '
+              /^## \[Unreleased\]/  { capture=1; next }
+              /^## \[/              { if (capture) exit }
+              capture                { print }
+            ' CHANGELOG.md > release-notes.md
+          fi
+          if [ ! -s release-notes.md ]; then
+            echo "Release ${tag}." > release-notes.md
           fi
           echo "---- release notes ----"
           cat release-notes.md
