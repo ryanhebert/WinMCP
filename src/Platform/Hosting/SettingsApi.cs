@@ -23,6 +23,8 @@ internal static class SettingsApi
         app.MapPut("/api/settings/oidc-providers/{name}", (Delegate)HandleUpdateProvider);
         app.MapDelete("/api/settings/oidc-providers/{name}", (Delegate)HandleDeleteProvider);
         app.MapPost("/api/settings/oidc-providers/{name}/rediscover", (Delegate)HandleRediscover);
+        app.MapPut("/api/settings/admin-auth", (Delegate)HandleUpdateAdminAuth);
+        app.MapPut("/api/settings/mcp-auth", (Delegate)HandleUpdateMcpAuth);
     }
 
     // ----- DTOs -----
@@ -272,6 +274,83 @@ internal static class SettingsApi
         RestartCoordinator.MarkPending();
         logger.LogWarning("Deleted OIDC provider name={Name}", name);
         return Results.NoContent();
+    }
+
+    internal sealed record AuthDomainRequest(
+        string Mode,
+        string? ProviderRef,
+        IReadOnlyList<string>? RequiredScopes,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? RequiredClaims);
+
+    private static async Task<IResult> HandleUpdateAdminAuth(HttpContext ctx) =>
+        await HandleUpdateAuthDomain(ctx, isAdmin: true);
+
+    private static async Task<IResult> HandleUpdateMcpAuth(HttpContext ctx) =>
+        await HandleUpdateAuthDomain(ctx, isAdmin: false);
+
+    private static async Task<IResult> HandleUpdateAuthDomain(HttpContext ctx, bool isAdmin)
+    {
+        var logger = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("WinMcp.Settings");
+        var config = ctx.RequestServices.GetRequiredService<PlatformConfig>();
+
+        AuthDomainRequest? body;
+        try { body = await ctx.Request.ReadFromJsonAsync<AuthDomainRequest>(); }
+        catch { return Results.Json(new { error = "invalid_request", message = "malformed JSON body" }, statusCode: 400); }
+        if (body is null) return Results.Json(new { error = "invalid_request", message = "body is required" }, statusCode: 400);
+
+        var scopes = body.RequiredScopes ?? Array.Empty<string>();
+        var claims = body.RequiredClaims ?? new Dictionary<string, IReadOnlyList<string>>();
+        var knownProviders = new HashSet<string>(config.OidcProviders.Keys, StringComparer.Ordinal);
+
+        var validation = SettingsValidator.ValidateAuthDomainShape(
+            body.Mode, body.ProviderRef, scopes, claims, knownProviders);
+        if (!validation.Ok)
+        {
+            return Results.Json(new { error = "invalid_request", field = validation.Field, message = validation.Message }, statusCode: 400);
+        }
+
+        var parsed = body.Mode.ToLowerInvariant() switch
+        {
+            "none" => AuthMode.None,
+            "demo" => AuthMode.Demo,
+            "oidc" => AuthMode.Oidc,
+            _ => throw new InvalidOperationException("validator should have caught this"),
+        };
+
+        // Lockout-safety note: we accept admin → oidc even though the OIDC
+        // validator returns 503 in v1.0. The UI shows a confirmation gate
+        // before the request reaches us. Logging WARN gives operators a
+        // breadcrumb if they wonder later why the dashboard is bricked.
+        if (isAdmin && parsed == AuthMode.Oidc)
+        {
+            logger.LogWarning(
+                "Admin auth set to OIDC. OIDC validator returns 503 until v1.1; the dashboard will be unreachable until that ships or until config.json is edited on the host.");
+        }
+
+        var newDomain = new AuthDomainConfig
+        {
+            Mode = parsed,
+            ProviderRef = parsed == AuthMode.Oidc ? body.ProviderRef : null,
+            RequiredScopes = scopes,
+            RequiredClaims = claims,
+            DemoCredentials = isAdmin ? null : config.Mcp.DefaultAuth.DemoCredentials,
+        };
+
+        if (isAdmin)
+        {
+            config.Admin.Auth = newDomain;
+            logger.LogWarning("Admin auth updated: mode={Mode} providerRef={Ref}", parsed, body.ProviderRef ?? "(none)");
+        }
+        else
+        {
+            config.Mcp.DefaultAuth = newDomain;
+            logger.LogWarning("MCP default auth updated: mode={Mode} providerRef={Ref}", parsed, body.ProviderRef ?? "(none)");
+        }
+
+        ConfigLoader.Save(config, PlatformPaths.ConfigPath);
+        RestartCoordinator.MarkPending();
+        return Results.Json(ToSnapshot(config));
     }
 
     private static async Task<IResult> HandleRediscover(HttpContext ctx, string name)
