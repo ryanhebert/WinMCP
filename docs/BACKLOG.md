@@ -90,6 +90,42 @@ RBAC editing UI, audit log viewer, license management page. Lives in a separate 
 
 ---
 
+## Settings page — v1.1.x follow-ups
+
+### OidcProviderRegistry concurrency safety
+`_providers` is a plain `Dictionary<string, OidcProvider>`. `Upsert` /
+`Remove` are called from settings-page request handlers (ASP.NET thread
+pool) while concurrent auth middleware paths read via `TryGet` / `All`.
+A simultaneous read + write on the same dict is technically a data race.
+Single-operator usage makes the probability vanishingly low, but the
+contract should be honest: wrap reads/writes in a lock or switch to
+`ConcurrentDictionary`.
+
+### Settings save error contract
+`SettingsApi`'s mutating handlers call `ConfigLoader.Save` naked. The
+spec called for a structured `500 + { error: "config_write_failed",
+message }` response on `IOException` (disk full, permissions). Today
+the exception propagates to ASP.NET's default handler and returns a
+plain 500. Wrap each save in a try/catch and emit the structured body.
+Same gap on `POST /api/settings/restart` for `RestartCoordinator.TriggerRestart`
+failures.
+
+### Required-claims key/value editor
+The Settings page's MCP-auth tab accepts a space-delimited
+`requiredScopes` input but does not yet expose `requiredClaims`. The
+server-side validator handles the field fine and the DTO round-trips
+it; operators just can't set it via UI. Add a small table editor
+(add row / remove row / key + comma-list of values).
+
+### Demo credentials on MCP auth tab
+The spec called for the platform's demo bearer / client_id /
+client_secret / TTL to be shown on Tab 3 when MCP default auth mode
+is `demo`, with copy buttons. The values are visible on the main
+dashboard already; surfacing them on Settings too keeps the operator
+in-context.
+
+---
+
 ## Documentation — ongoing
 
 ### `WinMCP-Docs` repo + Docusaurus site
