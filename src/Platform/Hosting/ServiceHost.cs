@@ -98,6 +98,12 @@ public static class ServiceHost
         var tokenStore = new TokenStore();
         builder.Services.AddSingleton(tokenStore);
 
+        // Make the live config available to the settings API. SettingsApi
+        // mutates it in-place + persists via ConfigLoader.Save; the live
+        // instance keeps existing consumers (RouteRegistration, etc.)
+        // pointed at the same object.
+        builder.Services.AddSingleton(config);
+
         builder.Services.AddHttpClient();
 
         // CORS — test-server posture. Per-module auth gates real access.
