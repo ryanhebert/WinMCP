@@ -62,6 +62,8 @@ Platform endpoints (always present, served on every configured listener):
 | `/token` | POST | OAuth2 `client_credentials` → bearer (when MCP auth mode = `demo`) |
 | `/.well-known/oauth-authorization-server` | GET | RFC 8414 server metadata (when demo auth is on) |
 | `/.well-known/oauth-protected-resource/<module>/mcp` | GET | RFC 9728 per-resource metadata |
+| `/settings` | GET | Editable settings page (identity providers, admin auth, MCP default auth) |
+| `/api/settings/*` | GET / PUT / POST / DELETE | REST endpoints backing the settings page |
 | `/upgrade` | POST | In-place platform upgrade (downloads new `WinMCP.exe`, swaps, restarts) |
 | `/upgrade/status` | GET | Upgrade pipeline status (JSON) |
 | `/upgrade/module/<name>` | POST | In-place module upgrade (downloads zip, swaps folder, restarts) |

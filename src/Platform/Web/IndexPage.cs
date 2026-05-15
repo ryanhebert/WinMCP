@@ -1276,6 +1276,7 @@ internal static class IndexPage
             "<a class=\"endpoint\" href=\"/\"><span class=\"method\">GET</span>/<span class=\"desc\">this page (HTML); JSON via <code>/info</code></span></a>",
             "<a class=\"endpoint\" href=\"/info\"><span class=\"method\">GET</span>/info<span class=\"desc\">platform + modules metadata (JSON)</span></a>",
             "<a class=\"endpoint\" href=\"/logs\"><span class=\"method\">GET</span>/logs<span class=\"desc\">live log viewer (HTML)</span></a>",
+            "<a class=\"endpoint\" href=\"/settings\"><span class=\"method\">GET</span>/settings<span class=\"desc\">Editable identity providers + admin auth + MCP default auth</span></a>",
             "<a class=\"endpoint\" href=\"/health\"><span class=\"method\">GET</span>/health<span class=\"desc\">health probe</span></a>",
             "<a class=\"endpoint\" href=\"/requests\"><span class=\"method\">GET</span>/requests<span class=\"desc\">recent MCP requests (JSON)</span></a>",
         };

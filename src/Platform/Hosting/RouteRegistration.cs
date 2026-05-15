@@ -92,7 +92,9 @@ internal static class RouteRegistration
                 p.StartsWith("/health", StringComparison.Ordinal) ||
                 p.StartsWith("/requests", StringComparison.Ordinal) ||
                 p.StartsWith("/logs", StringComparison.Ordinal) ||
-                p.StartsWith("/upgrade", StringComparison.Ordinal))
+                p.StartsWith("/upgrade", StringComparison.Ordinal) ||
+                p.StartsWith("/settings", StringComparison.Ordinal) ||
+                p.StartsWith("/api/settings", StringComparison.Ordinal))
             {
                 ctx.Response.Headers.CacheControl = "no-store";
             }
@@ -113,6 +115,8 @@ internal static class RouteRegistration
         MapLogsDates(app);
         MapFavicon(app);
         UpgradeOrchestrator.MapEndpoints(app);
+        MapSettingsPage(app);
+        SettingsApi.MapEndpoints(app);
 
         if (anyDemoAuth)
         {
@@ -163,7 +167,8 @@ internal static class RouteRegistration
         // Anything not under /<module>/mcp counts as admin. Module-scoped paths
         // are handled by per-module middleware above (UseWhen with explicit
         // match), so this catch-all auth applies to /, /info, /health, /logs,
-        // /requests, /cert*, /token, /upgrade, /.well-known/*, etc.
+        // /requests, /cert*, /token, /upgrade, /settings, /api/settings,
+        // /.well-known/*, etc.
         var p = path.Value ?? "/";
         return !p.Contains("/mcp", StringComparison.Ordinal);
     }
@@ -373,6 +378,16 @@ internal static class RouteRegistration
         // bytes anyway. Modern browsers render it; older ones just see no
         // favicon. Better than logging a 404 per visit.
         app.MapGet("/favicon.ico", () => Results.File(Favicon.Bytes, "image/svg+xml"));
+    }
+
+    private static void MapSettingsPage(WebApplication app)
+    {
+        app.MapGet("/settings", (PlatformConfig config) =>
+        {
+            var snapshot = SettingsApi.ToSnapshot(config);
+            var html = SettingsPage.Render(new SettingsPageModel(snapshot));
+            return Results.Content(html, "text/html; charset=utf-8");
+        });
     }
 
     private static void MapWellKnown(
