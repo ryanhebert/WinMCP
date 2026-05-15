@@ -63,3 +63,124 @@ public class SettingsValidator_ProviderShape
     public void Audience_DefaultsAllowed() =>
         Assert.True(SettingsValidator.ValidateProviderShape("okta", "https://issuer.example.com", "winmcp").Ok);
 }
+
+public class SettingsValidator_AuthDomain
+{
+    private static readonly HashSet<string> NoProviders = new();
+    private static readonly HashSet<string> WithOkta = new() { "okta" };
+
+    [Fact]
+    public void Mode_None_OK() =>
+        Assert.True(SettingsValidator.ValidateAuthDomainShape(
+            "none", providerRef: null, requiredScopes: Array.Empty<string>(),
+            requiredClaims: new Dictionary<string, IReadOnlyList<string>>(),
+            knownProviders: NoProviders).Ok);
+
+    [Fact]
+    public void Mode_Demo_OK() =>
+        Assert.True(SettingsValidator.ValidateAuthDomainShape(
+            "demo", null, Array.Empty<string>(),
+            new Dictionary<string, IReadOnlyList<string>>(),
+            NoProviders).Ok);
+
+    [Fact]
+    public void Mode_Oidc_RequiresProviderRef()
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            "oidc", providerRef: null, Array.Empty<string>(),
+            new Dictionary<string, IReadOnlyList<string>>(), WithOkta);
+        Assert.False(r.Ok);
+        Assert.Equal("providerRef", r.Field);
+    }
+
+    [Fact]
+    public void Mode_Oidc_ProviderRefMustExist()
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            "oidc", providerRef: "ghost", Array.Empty<string>(),
+            new Dictionary<string, IReadOnlyList<string>>(), WithOkta);
+        Assert.False(r.Ok);
+        Assert.Equal("providerRef", r.Field);
+        Assert.Contains("not configured", r.Message ?? "");
+    }
+
+    [Fact]
+    public void Mode_Oidc_HappyPath() =>
+        Assert.True(SettingsValidator.ValidateAuthDomainShape(
+            "oidc", "okta",
+            new[] { "openid", "email" },
+            new Dictionary<string, IReadOnlyList<string>>
+            {
+                ["groups"] = new[] { "admins" },
+            },
+            WithOkta).Ok);
+
+    [Theory]
+    [InlineData("garbage")]
+    [InlineData("OIDC")]
+    [InlineData("")]
+    public void Mode_Invalid(string mode)
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            mode, null, Array.Empty<string>(),
+            new Dictionary<string, IReadOnlyList<string>>(),
+            NoProviders);
+        Assert.False(r.Ok);
+        Assert.Equal("mode", r.Field);
+    }
+
+    [Fact]
+    public void RequiredScopes_EmptyStringRejected()
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            "oidc", "okta", new[] { "openid", "" },
+            new Dictionary<string, IReadOnlyList<string>>(),
+            WithOkta);
+        Assert.False(r.Ok);
+        Assert.Equal("requiredScopes", r.Field);
+    }
+
+    [Fact]
+    public void RequiredClaims_EmptyKeyRejected()
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            "oidc", "okta", Array.Empty<string>(),
+            new Dictionary<string, IReadOnlyList<string>> { [""] = new[] { "admins" } },
+            WithOkta);
+        Assert.False(r.Ok);
+        Assert.Equal("requiredClaims", r.Field);
+    }
+
+    [Fact]
+    public void RequiredClaims_EmptyValueArrayRejected()
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            "oidc", "okta", Array.Empty<string>(),
+            new Dictionary<string, IReadOnlyList<string>> { ["groups"] = Array.Empty<string>() },
+            WithOkta);
+        Assert.False(r.Ok);
+        Assert.Equal("requiredClaims", r.Field);
+    }
+
+    [Fact]
+    public void RequiredScopes_WhitespaceOnlyRejected()
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            "oidc", "okta", new[] { "openid", "   " },
+            new Dictionary<string, IReadOnlyList<string>>(),
+            WithOkta);
+        Assert.False(r.Ok);
+        Assert.Equal("requiredScopes", r.Field);
+    }
+
+    [Fact]
+    public void RequiredClaims_WhitespaceValueRejected()
+    {
+        var r = SettingsValidator.ValidateAuthDomainShape(
+            "oidc", "okta", Array.Empty<string>(),
+            new Dictionary<string, IReadOnlyList<string>> { ["groups"] = new[] { "   " } },
+            WithOkta);
+        Assert.False(r.Ok);
+        Assert.Equal("requiredClaims", r.Field);
+    }
+}

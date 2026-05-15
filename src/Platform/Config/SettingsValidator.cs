@@ -61,6 +61,62 @@ public static class SettingsValidator
         }
         return ValidationResult.Pass();
     }
+
+    private static readonly HashSet<string> ValidModes = new(StringComparer.Ordinal) { "none", "demo", "oidc" };
+
+    public static ValidationResult ValidateAuthDomainShape(
+        string mode,
+        string? providerRef,
+        IReadOnlyList<string> requiredScopes,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> requiredClaims,
+        IReadOnlySet<string> knownProviders)
+    {
+        if (!ValidModes.Contains(mode))
+        {
+            return ValidationResult.Fail("mode", $"must be one of 'none', 'demo', 'oidc' (got '{mode}')");
+        }
+
+        if (mode == "oidc")
+        {
+            if (string.IsNullOrWhiteSpace(providerRef))
+            {
+                return ValidationResult.Fail("providerRef", "must reference a configured identity provider");
+            }
+            if (!knownProviders.Contains(providerRef))
+            {
+                return ValidationResult.Fail("providerRef", $"provider '{providerRef}' is not configured");
+            }
+        }
+
+        foreach (var scope in requiredScopes)
+        {
+            if (string.IsNullOrWhiteSpace(scope))
+            {
+                return ValidationResult.Fail("requiredScopes", "scope entries must not be empty");
+            }
+        }
+
+        foreach (var (key, values) in requiredClaims)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return ValidationResult.Fail("requiredClaims", "claim names must not be empty");
+            }
+            if (values.Count == 0)
+            {
+                return ValidationResult.Fail("requiredClaims", $"claim '{key}' must have at least one value");
+            }
+            foreach (var v in values)
+            {
+                if (string.IsNullOrWhiteSpace(v))
+                {
+                    return ValidationResult.Fail("requiredClaims", $"claim '{key}' has an empty value");
+                }
+            }
+        }
+
+        return ValidationResult.Pass();
+    }
 }
 
 public sealed record ValidationResult(bool Ok, string? Field, string? Message)
