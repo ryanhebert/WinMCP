@@ -1,4 +1,6 @@
 using Xunit;
+using WinMcp.ModuleSdk;
+using WinMcp.Platform.Auth;
 using WinMcp.Platform.Config;
 
 namespace WinMcp.Platform.Tests;
@@ -182,5 +184,107 @@ public class SettingsValidator_AuthDomain
             WithOkta);
         Assert.False(r.Ok);
         Assert.Equal("requiredClaims", r.Field);
+    }
+}
+
+public class SettingsValidator_OrphanCheck
+{
+    private static PlatformConfig MakeConfig(
+        AuthMode adminMode = AuthMode.None,
+        string? adminProvider = null,
+        AuthMode mcpMode = AuthMode.None,
+        string? mcpProvider = null,
+        Dictionary<string, ModuleSettings>? modules = null)
+    {
+        var c = new PlatformConfig();
+        c.Admin.Auth = new AuthDomainConfig { Mode = adminMode, ProviderRef = adminProvider };
+        c.Mcp.DefaultAuth = new AuthDomainConfig { Mode = mcpMode, ProviderRef = mcpProvider };
+        if (modules is not null) c.Modules = modules;
+        return c;
+    }
+
+    [Fact]
+    public void Delete_Unreferenced_OK()
+    {
+        var c = MakeConfig();
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.True(r.Ok);
+    }
+
+    [Fact]
+    public void Delete_AdminReferenced_Rejected()
+    {
+        var c = MakeConfig(adminMode: AuthMode.Oidc, adminProvider: "okta");
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.False(r.Ok);
+        Assert.Equal("name", r.Field);
+        Assert.Contains("admin", r.Message ?? "");
+    }
+
+    [Fact]
+    public void Delete_McpReferenced_Rejected()
+    {
+        var c = MakeConfig(mcpMode: AuthMode.Oidc, mcpProvider: "okta");
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.False(r.Ok);
+        Assert.Equal("name", r.Field);
+        Assert.Contains("mcp", r.Message ?? "");
+    }
+
+    [Fact]
+    public void Delete_BothReferenced_ReportsBoth()
+    {
+        var c = MakeConfig(
+            adminMode: AuthMode.Oidc, adminProvider: "okta",
+            mcpMode: AuthMode.Oidc, mcpProvider: "okta");
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.False(r.Ok);
+        Assert.Equal("name", r.Field);
+        Assert.Contains("admin", r.Message ?? "");
+        Assert.Contains("mcp", r.Message ?? "");
+    }
+
+    [Fact]
+    public void Delete_DifferentProviderReferenced_OK()
+    {
+        var c = MakeConfig(adminMode: AuthMode.Oidc, adminProvider: "auth0");
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.True(r.Ok);
+    }
+
+    [Fact]
+    public void Delete_ModuleOverrideReferenced_Rejected()
+    {
+        var c = MakeConfig(modules: new Dictionary<string, ModuleSettings>
+        {
+            ["math"] = new() { AuthOverride = new AuthDomainConfig { Mode = AuthMode.Oidc, ProviderRef = "okta" } },
+        });
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.False(r.Ok);
+        Assert.Equal("name", r.Field);
+        Assert.Contains("module:math", r.Message ?? "");
+    }
+
+    [Fact]
+    public void Delete_ModuleOverrideDifferentProvider_OK()
+    {
+        var c = MakeConfig(modules: new Dictionary<string, ModuleSettings>
+        {
+            ["math"] = new() { AuthOverride = new AuthDomainConfig { Mode = AuthMode.Oidc, ProviderRef = "auth0" } },
+        });
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.True(r.Ok);
+    }
+
+    [Fact]
+    public void Delete_ModuleOverrideNonOidc_OK()
+    {
+        // A module override that's set to None or Demo doesn't reference a provider.
+        var c = MakeConfig(modules: new Dictionary<string, ModuleSettings>
+        {
+            ["math"] = new() { AuthOverride = new AuthDomainConfig { Mode = AuthMode.None, ProviderRef = "okta" } },
+        });
+        var r = SettingsValidator.ValidateProviderDeletable("okta", c);
+        Assert.True(r.Ok);
     }
 }

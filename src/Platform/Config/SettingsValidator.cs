@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using WinMcp.ModuleSdk;
 
 namespace WinMcp.Platform.Config;
 
@@ -115,6 +116,42 @@ public static class SettingsValidator
             }
         }
 
+        return ValidationResult.Pass();
+    }
+
+    /// <summary>
+    /// Rejects deletion of an OIDC provider that the admin or MCP auth
+    /// domain — or any per-module auth override — still references.
+    /// Returns the referencing domains in the error message so the
+    /// operator knows which setting to change first.
+    /// </summary>
+    public static ValidationResult ValidateProviderDeletable(string name, PlatformConfig config)
+    {
+        var inUseBy = new List<string>();
+        if (config.Admin.Auth.Mode == AuthMode.Oidc &&
+            string.Equals(config.Admin.Auth.ProviderRef, name, StringComparison.Ordinal))
+        {
+            inUseBy.Add("admin");
+        }
+        if (config.Mcp.DefaultAuth.Mode == AuthMode.Oidc &&
+            string.Equals(config.Mcp.DefaultAuth.ProviderRef, name, StringComparison.Ordinal))
+        {
+            inUseBy.Add("mcp");
+        }
+        foreach (var (moduleName, settings) in config.Modules)
+        {
+            if (settings.AuthOverride is { Mode: AuthMode.Oidc } overrideAuth &&
+                string.Equals(overrideAuth.ProviderRef, name, StringComparison.Ordinal))
+            {
+                inUseBy.Add($"module:{moduleName}");
+            }
+        }
+        if (inUseBy.Count > 0)
+        {
+            return ValidationResult.Fail(
+                "name",
+                $"provider '{name}' is in use by: {string.Join(", ", inUseBy)}. Change those settings before deleting.");
+        }
         return ValidationResult.Pass();
     }
 }
