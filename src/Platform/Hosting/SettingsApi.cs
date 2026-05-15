@@ -25,6 +25,7 @@ internal static class SettingsApi
         app.MapPost("/api/settings/oidc-providers/{name}/rediscover", (Delegate)HandleRediscover);
         app.MapPut("/api/settings/admin-auth", (Delegate)HandleUpdateAdminAuth);
         app.MapPut("/api/settings/mcp-auth", (Delegate)HandleUpdateMcpAuth);
+        app.MapPost("/api/settings/restart", (Delegate)HandleRestart);
     }
 
     // ----- DTOs -----
@@ -351,6 +352,18 @@ internal static class SettingsApi
         ConfigLoader.Save(config, PlatformPaths.ConfigPath);
         RestartCoordinator.MarkPending();
         return Results.Json(ToSnapshot(config));
+    }
+
+    private static IResult HandleRestart(HttpContext ctx)
+    {
+        var logger = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("WinMcp.Settings");
+        RestartCoordinator.TriggerRestart(logger);
+        return Results.Json(new
+        {
+            status = "initiated",
+            note = "Service will stop in ~2s and start back up. Poll /info to detect when it's online.",
+        }, statusCode: 202);
     }
 
     private static async Task<IResult> HandleRediscover(HttpContext ctx, string name)
