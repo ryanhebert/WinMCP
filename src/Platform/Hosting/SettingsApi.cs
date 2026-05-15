@@ -15,6 +15,11 @@ namespace WinMcp.Platform.Hosting;
 [SupportedOSPlatform("windows")]
 internal static class SettingsApi
 {
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+    };
+
     public static void MapEndpoints(WebApplication app)
     {
         app.MapGet("/api/settings", (Delegate)HandleGetSnapshot);
@@ -58,13 +63,13 @@ internal static class SettingsApi
     private static IResult HandleGetSnapshot(HttpContext ctx)
     {
         var config = ctx.RequestServices.GetRequiredService<PlatformConfig>();
-        return Results.Json(ToSnapshot(config));
+        return Results.Json(ToSnapshot(config), JsonOptions);
     }
 
     private static IResult HandleGetRestartPending() =>
         Results.Json(new RestartPendingDto(
             Pending: RestartCoordinator.IsPending,
-            Since: RestartCoordinator.PendingSince?.ToString("O")));
+            Since: RestartCoordinator.PendingSince?.ToString("O")), JsonOptions);
 
     // ----- Helpers (also used by later handler tasks) -----
 
@@ -182,7 +187,7 @@ internal static class SettingsApi
 
         RestartCoordinator.MarkPending();
         logger.LogWarning("Added OIDC provider name={Name} issuer={Issuer}", body.Name, body.Issuer);
-        return Results.Json(ToProviderDto(body.Name, entry, config), statusCode: 201);
+        return Results.Json(ToProviderDto(body.Name, entry, config), JsonOptions, statusCode: 201);
     }
 
     internal sealed record UpdateProviderRequest(string Issuer, string? Audience);
@@ -244,7 +249,7 @@ internal static class SettingsApi
         ConfigLoader.Save(config, PlatformPaths.ConfigPath);
         RestartCoordinator.MarkPending();
         logger.LogWarning("Updated OIDC provider name={Name}", name);
-        return Results.Json(ToProviderDto(name, entry, config));
+        return Results.Json(ToProviderDto(name, entry, config), JsonOptions);
     }
 
     private static IResult HandleDeleteProvider(HttpContext ctx, string name)
@@ -351,7 +356,7 @@ internal static class SettingsApi
 
         ConfigLoader.Save(config, PlatformPaths.ConfigPath);
         RestartCoordinator.MarkPending();
-        return Results.Json(ToSnapshot(config));
+        return Results.Json(ToSnapshot(config), JsonOptions);
     }
 
     private static IResult HandleRestart(HttpContext ctx)
@@ -401,6 +406,6 @@ internal static class SettingsApi
         // Re-discovery doesn't flip the restart-pending flag; no auth-mode
         // change occurred, just refreshed endpoint URLs.
         logger.LogInformation("Re-discovered OIDC provider name={Name}", name);
-        return Results.Json(ToProviderDto(name, existing, config));
+        return Results.Json(ToProviderDto(name, existing, config), JsonOptions);
     }
 }
