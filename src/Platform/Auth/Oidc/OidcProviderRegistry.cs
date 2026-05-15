@@ -25,4 +25,20 @@ public sealed class OidcProviderRegistry
                 $"OIDC provider '{name}' is referenced by an auth config but not defined in oidcProviders.");
 
     public IReadOnlyCollection<OidcProvider> All => _providers.Values;
+
+    /// <summary>
+    /// Adds or replaces a provider entry. Used by the settings API when
+    /// a new provider is added live so subsequent providerRef validation
+    /// sees it before the next restart.
+    /// </summary>
+    public void Upsert(OidcProvider provider)
+    {
+        _providers[provider.Name] = provider;
+    }
+
+    /// <summary>
+    /// Removes a provider entry. Symmetric counterpart to <see cref="Upsert"/>;
+    /// called by the settings API after a provider is deleted from config.
+    /// </summary>
+    public bool Remove(string name) => _providers.Remove(name);
 }

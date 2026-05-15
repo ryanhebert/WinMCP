@@ -150,14 +150,17 @@ public static class SettingsValidator
         {
             return ValidationResult.Fail(
                 "name",
-                $"provider '{name}' is in use by: {string.Join(", ", inUseBy)}. Change those settings before deleting.");
+                $"provider '{name}' is in use by: {string.Join(", ", inUseBy)}. Change those settings before deleting.",
+                inUseBy);
         }
         return ValidationResult.Pass();
     }
 }
 
-public sealed record ValidationResult(bool Ok, string? Field, string? Message)
+public sealed record ValidationResult(bool Ok, string? Field, string? Message, IReadOnlyList<string>? InUseBy = null)
 {
     public static ValidationResult Pass() => new(true, null, null);
     public static ValidationResult Fail(string field, string message) => new(false, field, message);
+    public static ValidationResult Fail(string field, string message, IReadOnlyList<string> inUseBy) =>
+        new(false, field, message, inUseBy);
 }
