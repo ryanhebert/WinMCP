@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinMcp.ModuleSdk", "src\Mod
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinMcp.Platform", "src\Platform\WinMcp.Platform.csproj", "{192D7325-2D3E-49AB-A344-E3ADEE22A58E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0947E01A-20B2-4FCA-A434-68C4468ED73D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Platform.Tests", "tests\Platform.Tests\Platform.Tests.csproj", "{F5187FB9-4F43-46F2-981E-AFAECBBCCBE2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,9 +30,14 @@ Global
 		{192D7325-2D3E-49AB-A344-E3ADEE22A58E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{192D7325-2D3E-49AB-A344-E3ADEE22A58E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{192D7325-2D3E-49AB-A344-E3ADEE22A58E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5187FB9-4F43-46F2-981E-AFAECBBCCBE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5187FB9-4F43-46F2-981E-AFAECBBCCBE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5187FB9-4F43-46F2-981E-AFAECBBCCBE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5187FB9-4F43-46F2-981E-AFAECBBCCBE2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D87DB7F3-AE13-4FAE-BB96-EBC0483D47A1} = {2A3B2D7F-1620-4755-86FD-B66007F7D43D}
 		{192D7325-2D3E-49AB-A344-E3ADEE22A58E} = {2A3B2D7F-1620-4755-86FD-B66007F7D43D}
+		{F5187FB9-4F43-46F2-981E-AFAECBBCCBE2} = {0947E01A-20B2-4FCA-A434-68C4468ED73D}
 	EndGlobalSection
 EndGlobal
