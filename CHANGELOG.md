@@ -6,7 +6,35 @@ When a release ships, move "Unreleased" entries into a new `## [vX.Y.Z] — YYYY
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Added
+- Editable Settings page at `/settings` with three tabs:
+  - **Identity providers** — CRUD with synchronous OIDC discovery on save.
+    Re-discover button per provider for endpoint-rotation cases.
+  - **Admin auth** — mode picker (`none` / `demo` / `oidc`). `demo` is
+    disabled with helper text; `oidc` shows the v1.0 lockout warning and
+    requires explicit confirmation.
+  - **MCP default auth** — mode picker + provider dropdown + required
+    scopes.
+- REST API at `/api/settings/*` backing the page:
+  `GET /api/settings`, `GET /api/settings/restart-pending`,
+  `POST/PUT/DELETE/.../rediscover` on `oidc-providers`, `PUT` on
+  `admin-auth` and `mcp-auth`, `POST /api/settings/restart`.
+- `RestartCoordinator` — in-process pending-restart flag + helper-batch
+  spawner. Every successful save sets the flag; the dashboard renders a
+  global banner across `/` and `/settings`; clicking Restart now spawns
+  a detached `.cmd` that stops + starts the service.
+- Strict server-side validation in `SettingsValidator` with xUnit coverage
+  in a new `tests/Platform.Tests/` project (~44 cases): provider name /
+  issuer / audience shapes; auth-domain shape + provider-ref resolution;
+  orphan rejection on provider delete (including per-module override
+  references).
+- Lockout-safety machinery for admin auth → `oidc`: server logs WARN +
+  client requires confirmation, since v1.0's OIDC validator returns 503.
+
+### Notes
+- Per-module auth override editing remains config.json-only; deferred to
+  the next slice.
+- Live-reload (no restart required) added to BACKLOG.
 
 ## [v1.0.0] — 2026-05-15
 

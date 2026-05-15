@@ -14,17 +14,22 @@ When an item ships, delete it from this file and document it in `CHANGELOG.md`.
 ### Admin auth `oidc` mode
 The schema already accepts it; the middleware needs to actually validate JWTs and gate the admin endpoints. Dashboard sees an "auth required" splash with a "Sign in with <provider>" button.
 
-### Dashboard Settings pages
-Editable UI for Admin auth, MCP default auth, and Identity providers. Today these are config-file-only. v1.1 adds:
-- Settings → Identity providers (add via auto-discovery)
-- Settings → Admin auth (mode + provider picker)
-- Settings → MCP default auth (mode + provider + required scopes)
-
 ### Per-module auth override editing
 Module Auth tab in the dashboard with `[Override]` / `[Reset to default]` buttons. Writes to `config.json`'s `modules.<name>.authOverride` field.
 
 ### Auth-mode safety rails
 Refuse to load `demo`-maturity modules when MCP default auth is `oidc`, unless `mcp.allowDemoModulesInProduction: true`. Refuse to apply module overrides that downgrade auth (mode less strict than platform default) without `allowAuthDowngrade: true`.
+
+### Live-reload of auth validators
+Today (post-Settings-page) saved auth changes set an in-process
+restart-pending flag and require a service restart to take effect.
+Live-reload would rebuild `AuthValidatorFactory`'s cached validators
+in-place when config changes — no restart, no impact on other
+modules. Requires plumbing dynamic config lookup through the
+middleware closures wired up in P4c (`UseMiddleware<AuthMiddleware>(validator)`
+captures the validator instance at startup). Possible options: a config-version
+counter checked per request, swap-on-write of the singleton factory,
+or a small per-request resolver delegate. Deserves its own design.
 
 ---
 
