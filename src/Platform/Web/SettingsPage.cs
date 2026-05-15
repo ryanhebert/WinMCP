@@ -225,9 +225,8 @@ internal static class SettingsPage
   async function pollRestartPending() {
     try {
       const r = await api('GET', '/api/settings/restart-pending');
-      if (r.ok && r.json.pending) {
-        document.getElementById('restart-banner').classList.add('show');
-      }
+      if (!r.ok) return;
+      document.getElementById('restart-banner').classList.toggle('show', !!r.json?.pending);
     } catch (_) { /* ignore */ }
   }
   document.getElementById('restart-now-btn').addEventListener('click', async () => {

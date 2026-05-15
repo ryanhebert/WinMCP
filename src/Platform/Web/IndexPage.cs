@@ -403,6 +403,22 @@ internal static class IndexPage
     100% { margin-left: 100%; }
   }
 
+  /* Restart-pending banner — driven by /api/settings/restart-pending. */
+  .restart-banner {
+    display: none;
+    background: linear-gradient(90deg, rgba(251,191,36,0.18) 0%, rgba(124,92,255,0.12) 100%);
+    border: 1px solid rgba(251,191,36,0.4);
+    border-radius: 10px;
+    padding: 10px 14px; margin: 0 0 18px;
+    font-size: 13px;
+    align-items: center; gap: 12px;
+  }
+  .restart-banner.show { display: flex; }
+  .restart-banner .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--warn); box-shadow: 0 0 8px rgba(251,191,36,0.6);
+  }
+
   /* === Upgrade modal === */
   .upgrade-modal-backdrop {
     position: fixed; inset: 0;
@@ -526,6 +542,14 @@ internal static class IndexPage
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="restart-banner" id="restart-banner">
+      <span class="dot"></span>
+      <span><strong>Restart pending</strong> — settings changes won't take effect until WinMCP restarts.</span>
+      <span style="margin-left:auto">
+        <a href="/settings" class="btn" style="border:1px solid var(--border); border-radius:6px; padding:5px 12px; font-size:12px; text-decoration:none; color:var(--accent);">Open settings</a>
+      </span>
     </div>
 
     <div class="update-banner" id="update-banner">
@@ -1154,6 +1178,19 @@ internal static class IndexPage
       } catch (e) { /* swallow */ }
     }
     setInterval(refresh, 5000);
+  })();
+
+  (function() {
+    async function pollRestartPending() {
+      try {
+        const r = await fetch('/api/settings/restart-pending', { cache: 'no-store' });
+        if (!r.ok) return;
+        const j = await r.json();
+        document.getElementById('restart-banner').classList.toggle('show', !!j.pending);
+      } catch (_) { /* swallow */ }
+    }
+    pollRestartPending();
+    setInterval(pollRestartPending, 10000);
   })();
 </script>
 </body>
