@@ -208,9 +208,9 @@ To publish the Module SDK NuGet package:
 dotnet pack src/ModuleSdk/WinMcp.ModuleSdk.csproj -c Release
 ```
 
-## Status
+## Design and roadmap
 
-Pre-1.0 — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and [docs/BACKLOG.md](docs/BACKLOG.md) for the roadmap.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design (process model, URL layout, auth domains, module loading, upgrade flow) and [docs/BACKLOG.md](docs/BACKLOG.md) for v1.1+ work.
 
 ## Contributing
 

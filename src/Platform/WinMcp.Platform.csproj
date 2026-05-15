@@ -9,8 +9,8 @@
     <AssemblyName>WinMCP</AssemblyName>
     <OutputType>Exe</OutputType>
 
-    <!-- Platform versioning; will be bumped per release. -->
-    <Version>1.0.0-alpha.1</Version>
+    <!-- Platform versioning; bumped per release. -->
+    <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <Product>WinMCP Platform</Product>
