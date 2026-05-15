@@ -22,21 +22,16 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # Pre-source phase: this scaffold has no .csproj yet. Once src/Platform
-      # and src/ModuleSdk exist, replace the conditional with a normal build.
-      - name: Build (skip if no solution yet)
-        shell: bash
-        run: |
-          if [ -f WinMCP.sln ]; then
-            dotnet restore
-            dotnet build --configuration Release --no-restore
-          else
-            echo "No solution file yet; skipping build."
-          fi
+      - name: Restore
+        run: dotnet restore
 
-      - name: Test (skip if no tests yet)
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
         shell: bash
         run: |
+          # Tests will live under tests/ once they exist; skip cleanly until then.
           if [ -d tests ]; then
             dotnet test --configuration Release --no-build --verbosity normal
           else

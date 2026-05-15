@@ -1,0 +1,94 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+# A tag-driven release builds the self-contained single-file WinMCP.exe and
+# attaches it to a new GitHub Release. Two copies of the same binary are
+# uploaded:
+#   - WinMCP.exe              → unversioned alias so the dashboard's
+#                                "Upgrade now" button (which fetches
+#                                /releases/latest/download/WinMCP.exe) keeps
+#                                working as new versions land.
+#   - WinMCP-<tag>.exe        → versioned name matching the pinned-upgrade
+#                                URL the orchestrator builds when a specific
+#                                tag is requested.
+
+permissions:
+  contents: write  # required to create releases + upload assets
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest  # .NET 8 cross-publishes to win-x64 from Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so the changelog extraction below
+                          # can resolve commit metadata if it ever needs to
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Verify tag matches Version in csproj
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"            # e.g. v1.0.0
+          semver="${tag#v}"                   # e.g. 1.0.0
+          csproj=src/Platform/WinMcp.Platform.csproj
+          csproj_version=$(grep -oP '(?<=<Version>)[^<]+' "$csproj")
+          if [ "$csproj_version" != "$semver" ]; then
+            echo "::error::Tag $tag does not match csproj <Version>$csproj_version</Version>." \
+                 "Bump src/Platform/WinMcp.Platform.csproj's <Version> to $semver before tagging."
+            exit 1
+          fi
+          echo "Tag and csproj versions agree: $semver"
+
+      - name: Publish (self-contained, single-file, win-x64)
+        run: |
+          dotnet publish src/Platform/WinMcp.Platform.csproj \
+            -c Release -r win-x64 --self-contained \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o publish
+
+      - name: Rename versioned copy
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          cp publish/WinMCP.exe "publish/WinMCP-${tag}.exe"
+          ls -la publish/
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          set -euo pipefail
+          # Grab the [Unreleased] block — everything after "## [Unreleased]"
+          # up to (but not including) the next "## [" header. If the user
+          # hasn't moved entries out of Unreleased yet, that block is the
+          # changelog for this release.
+          awk '
+            /^## \[Unreleased\]/  { capture=1; next }
+            /^## \[/              { if (capture) exit }
+            capture                { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release ${GITHUB_REF_NAME}." > release-notes.md
+          fi
+          echo "---- release notes ----"
+          cat release-notes.md
+          echo "-----------------------"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          gh release create "$tag" \
+            "publish/WinMCP.exe" \
+            "publish/WinMCP-${tag}.exe" \
+            --title "WinMCP $tag" \
+            --notes-file release-notes.md
