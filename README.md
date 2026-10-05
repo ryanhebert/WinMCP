@@ -41,7 +41,7 @@ Modules are distributed independently as GitHub-released `.zip` artifacts. To in
 
 The dashboard's Modules card will show the new module with its mount path, maturity, and tools/prompts/resources. The MCP transport is reachable at `/<name>/mcp`.
 
-Official modules live in [WinMCP-Modules](https://github.com/ryanhebert/WinMCP-Modules). Third parties can build their own against the [WinMcp.ModuleSdk](https://www.nuget.org/packages/WinMcp.ModuleSdk) NuGet package and distribute via any GitHub repository — see the [module-author guide](https://github.com/ryanhebert/WinMCP-Modules/blob/main/docs/BUILDING-A-MODULE.md).
+Official modules live in [WinMCP-Modules](https://github.com/ryanhebert/WinMCP-Modules). Third parties can build their own against the `WinMcp.ModuleSdk` package and distribute via any GitHub repository. The SDK is not on nuget.org yet; build it from this repo into a local package folder (see [Building from source](#building-from-source) below) — see the [module-author guide](https://github.com/ryanhebert/WinMCP-Modules/blob/main/docs/BUILDING-A-MODULE.md).
 
 A module that declares an `updateSource` block in its `module.json` will also expose an in-UI **Upgrade ↑** button on the dashboard once installed; the platform handles download + verification + folder swap + service restart without further operator action.
 
@@ -204,10 +204,10 @@ dotnet publish src/Platform/WinMcp.Platform.csproj -c Release -r win-x64 \
 
 Output: `src/Platform/bin/Release/net8.0/win-x64/publish/WinMCP.exe`.
 
-To publish the Module SDK NuGet package:
+To build the Module SDK package (`1.0.0-alpha.1`, not yet published to nuget.org) into a local folder that module projects can use as a package source:
 
 ```sh
-dotnet pack src/ModuleSdk/WinMcp.ModuleSdk.csproj -c Release
+dotnet pack src/ModuleSdk/WinMcp.ModuleSdk.csproj -c Release -o ../local-packages
 ```
 
 ## Design and roadmap
