@@ -48,3 +48,7 @@ config.local.json
 ## Misc
 .env
 .env.local
+
+# Local design scratch (AI planning docs): kept on disk, not published.
+docs/plans/
+docs/specs/
